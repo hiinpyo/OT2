@@ -828,6 +828,33 @@ function renderSensitivity(result) {
 }
 
 // ── Sensitivity row selection ──────────────────────────────────────────────
+function updateChartAdjusted(result) {
+  if (!STATE.chart) { renderChart(result); return; }
+
+  const { PV, PMT_adj, r, extraAmount } = result;
+  const labels = STATE.chart.data.labels;
+
+  const adjusted = labels.map(month => {
+    const growth = Math.pow(1 + r, month);
+    const aVal = r > 0.0001
+      ? PV * growth + PMT_adj * (growth - 1) / r
+      : PV + PMT_adj * month;
+    return Math.max(0, aVal);
+  });
+
+  const adjLabel = extraAmount > 0 ? 'Saving More' : extraAmount < 0 ? 'Spending More' : 'Adjusted (no change)';
+  const adjColor = extraAmount > 0 ? '#22c55e' : extraAmount < 0 ? '#ef4444' : '#6366f1';
+  const adjBg    = extraAmount > 0 ? 'rgba(34,197,94,0.07)' : extraAmount < 0 ? 'rgba(239,68,68,0.07)' : 'rgba(99,102,241,0.07)';
+
+  const ds = STATE.chart.data.datasets[1];
+  ds.data = adjusted;
+  ds.label = adjLabel;
+  ds.borderColor = adjColor;
+  ds.backgroundColor = adjBg;
+
+  STATE.chart.update();
+}
+
 function selectSensitivityRow(offset) {
   if (!STATE.lastResult) return;
   const { PV, PMT_base, r, FV, n_base, currentAge } = STATE.lastResult;
@@ -840,7 +867,7 @@ function selectSensitivityRow(offset) {
   const updated = { ...STATE.lastResult, PMT_adj, n_adj, delta, adjustedAge, extraAmount: offset };
   STATE.lastResult = updated;
 
-  renderChart(updated);
+  updateChartAdjusted(updated);
 
   // Adjusted card
   document.getElementById('card-adjusted-main').textContent =
