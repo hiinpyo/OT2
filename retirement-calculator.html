@@ -317,26 +317,12 @@
       overflow: hidden;
       transition: opacity 0.3s;
     }
-    .sensitivity-section summary {
+    .sens-header {
       padding: 14px 18px;
-      cursor: pointer;
       font-size: 0.88rem;
       font-weight: 600;
       color: var(--text-muted);
-      user-select: none;
-      list-style: none;
-      display: flex;
-      align-items: center;
-      gap: 8px;
     }
-    .sensitivity-section summary::-webkit-details-marker { display: none; }
-    .sensitivity-section summary::before {
-      content: '▶';
-      font-size: 0.65rem;
-      transition: transform 0.2s;
-    }
-    .sensitivity-section[open] summary::before { transform: rotate(90deg); }
-    .sensitivity-section summary:hover { color: var(--text); }
     .sens-table-wrap { padding: 0 18px 18px; overflow-x: auto; overflow-y: auto; max-height: 340px; }
     .sens-table {
       width: 100%;
@@ -464,18 +450,6 @@
       <span class="error-msg" id="err-withdrawalRate"></span>
     </div>
 
-    <div class="section-label">The Decision</div>
-
-    <div class="form-group">
-      <label for="extraAmount">Extra Monthly Amount</label>
-      <div class="input-wrap extra-amount-wrap">
-        <span class="input-prefix">$</span>
-        <input type="number" id="extraAmount" value="0" class="has-prefix">
-      </div>
-      <span class="extra-badge neutral" id="extraBadge">Enter an amount — positive to save more, negative to spend more</span>
-      <span class="error-msg" id="err-extraAmount"></span>
-    </div>
-
     <div class="btn-row">
       <button class="btn-primary" id="calcBtn">Calculate Impact</button>
       <button class="btn-reset" id="resetBtn">Reset</button>
@@ -510,8 +484,8 @@
       </div>
     </div>
 
-    <details class="sensitivity-section" id="sensitivitySection">
-      <summary>Sensitivity Analysis — how different amounts compare</summary>
+    <div class="sensitivity-section" id="sensitivitySection">
+      <div class="sens-header">Sensitivity Analysis — how different amounts compare</div>
       <div class="sens-table-wrap">
         <table class="sens-table" id="sensTable">
           <thead>
@@ -525,7 +499,7 @@
           <tbody id="sensBody"></tbody>
         </table>
       </div>
-    </details>
+    </div>
   </div>
 
 </div>
@@ -612,7 +586,7 @@ function getInputs() {
   const retirementExpenses  = val('retirementExpenses');
   const annualReturn        = val('annualReturn');
   const withdrawalRate      = val('withdrawalRate');
-  const extraAmount         = val('extraAmount');
+  const extraAmount = 0;
 
   if (isNaN(currentAge) || currentAge < 1 || currentAge > 100)
     errors.push({ id: 'currentAge', msg: 'Enter a valid age (1–100).' });
@@ -628,9 +602,6 @@ function getInputs() {
     errors.push({ id: 'annualReturn', msg: 'Enter a return rate between 0 and 30%.' });
   if (isNaN(withdrawalRate) || withdrawalRate < 0.5 || withdrawalRate > 10)
     errors.push({ id: 'withdrawalRate', msg: 'Enter a rate between 0.5% and 10%.' });
-  if (isNaN(extraAmount))
-    errors.push({ id: 'extraAmount', msg: 'Enter a number (can be negative).' });
-
   if (errors.length) throw errors;
 
   return { currentAge, currentPortfolio, monthlyIncome, monthlyExpenses,
@@ -968,8 +939,6 @@ function updateHints() {
   const expenses = val('monthlyExpenses') || 0;
   const retExp   = val('retirementExpenses') || 0;
   const swr      = val('withdrawalRate') || 4;
-  const extra    = val('extraAmount')    || 0;
-
   const savings = income - expenses;
   document.getElementById('savings-hint').innerHTML =
     `Monthly savings: <strong>${formatCurrency(savings)}/mo</strong>`;
@@ -978,17 +947,6 @@ function updateHints() {
   document.getElementById('target-hint').innerHTML =
     `Retirement target: <strong>${formatCurrencyShort(target)}</strong>`;
 
-  const badge = document.getElementById('extraBadge');
-  if (extra > 0) {
-    badge.className = 'extra-badge saving';
-    badge.textContent = `Saving ${formatCurrency(extra)}/mo more`;
-  } else if (extra < 0) {
-    badge.className = 'extra-badge spending';
-    badge.textContent = `Spending ${formatCurrency(Math.abs(extra))}/mo more`;
-  } else {
-    badge.className = 'extra-badge neutral';
-    badge.textContent = 'Enter an amount — positive to save more, negative to spend more';
-  }
 }
 
 function markStale() {
@@ -1017,7 +975,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Hints on input
-  const hintFields = ['monthlyIncome','monthlyExpenses','retirementExpenses','withdrawalRate','extraAmount'];
+  const hintFields = ['monthlyIncome','monthlyExpenses','retirementExpenses','withdrawalRate'];
   hintFields.forEach(id => {
     document.getElementById(id).addEventListener('input', updateHints);
   });
@@ -1040,7 +998,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const defaults = {
       currentAge: 30, currentPortfolio: 50000, monthlyIncome: 6000,
       monthlyExpenses: 4500, retirementExpenses: 3500,
-      annualReturn: 7, withdrawalRate: 4, extraAmount: 0
+      annualReturn: 7, withdrawalRate: 4
     };
     Object.entries(defaults).forEach(([id, v]) => {
       document.getElementById(id).value = v;
