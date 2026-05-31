@@ -356,6 +356,30 @@
     .sens-table tbody tr { cursor: pointer; }
     .sens-table tbody tr:hover td { background: var(--surface2); }
 
+    /* Retirement target card */
+    .target-card {
+      margin-top: 20px;
+      margin-bottom: 4px;
+      background: var(--surface2);
+      border: 1px solid rgba(99,102,241,0.35);
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+    }
+    .target-card-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+    .target-card-amount {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
     /* Footer */
     footer {
       text-align: center;
@@ -429,7 +453,6 @@
         <span class="input-prefix">$</span>
         <input type="number" id="retirementExpenses" value="3500" min="0" class="has-prefix">
       </div>
-      <span class="hint" id="target-hint">Retirement target: <strong>$1,050,000</strong></span>
       <span class="error-msg" id="err-retirementExpenses"></span>
     </div>
 
@@ -450,6 +473,11 @@
       </div>
       <span class="hint">4% = the classic 25x rule</span>
       <span class="error-msg" id="err-withdrawalRate"></span>
+    </div>
+
+    <div class="target-card">
+      <div class="target-card-label">Retirement Target</div>
+      <div class="target-card-amount" id="target-hint">$1,050,000</div>
     </div>
 
     <div class="btn-row">
@@ -1019,8 +1047,7 @@ function updateHints() {
     `Monthly savings: <strong>${formatCurrency(savings)}/mo</strong>`;
 
   const target = calcTarget(retExp, swr);
-  document.getElementById('target-hint').innerHTML =
-    `Retirement target: <strong>${formatCurrencyShort(target)}</strong>`;
+  document.getElementById('target-hint').textContent = formatCurrencyShort(target);
 
 }
 
