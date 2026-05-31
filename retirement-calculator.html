@@ -276,6 +276,22 @@
     .card.neutral  .card-delta-main { color: var(--text-muted); }
 
     /* Chart */
+    .chart-toolbar {
+      display: flex;
+      gap: 14px;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
+    .radio-opt {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .radio-opt input { accent-color: var(--accent); cursor: pointer; }
+    .radio-opt:has(input:checked) { color: var(--text); }
     .chart-card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -489,6 +505,10 @@
       <div class="chart-wrapper">
         <canvas id="portfolioChart"></canvas>
       </div>
+      <div class="chart-toolbar">
+        <label class="radio-opt"><input type="radio" name="xAxis" value="age" checked> Age</label>
+        <label class="radio-opt"><input type="radio" name="xAxis" value="years"> Years from Now</label>
+      </div>
     </div>
 
     <div class="sensitivity-section" id="sensitivitySection">
@@ -519,7 +539,7 @@
 'use strict';
 
 // ── State ──────────────────────────────────────────────────────────────────
-const STATE = { chart: null, lastResult: null, calculated: false };
+const STATE = { chart: null, lastResult: null, calculated: false, xAxisMode: 'age' };
 
 // ── Formatters ─────────────────────────────────────────────────────────────
 const fmtCurrency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -777,7 +797,11 @@ function renderChart(result, force = false) {
           titleColor: textColor,
           bodyColor: tickColor,
           callbacks: {
-            title: (items) => `Month ${items[0].label}  (${formatMonths(+items[0].label)})`,
+            title: (items) => {
+              const months = +items[0].label;
+              const age = (STATE.lastResult?.currentAge ?? 0) + months / 12;
+              return `${formatAge(age)}  (${formatMonths(months)} from now)`;
+            },
             label: (item) => `  ${item.dataset.label}: ${formatCurrency(item.raw)}`
           }
         },
@@ -785,8 +809,20 @@ function renderChart(result, force = false) {
       },
       scales: {
         x: {
-          title: { display: true, text: 'Months from Now', color: tickColor, font: { size: 11 } },
-          ticks: { color: tickColor, maxTicksLimit: 10 },
+          title: { display: true, text: 'Age', color: tickColor, font: { size: 11 } },
+          ticks: {
+            color: tickColor,
+            maxRotation: 0,
+            autoSkip: false,
+            callback: (value) => {
+              if (value % 12 !== 0) return null;
+              const yrs = value / 12;
+              if (STATE.xAxisMode === 'age') {
+                return Math.round((STATE.lastResult?.currentAge ?? 0) + yrs);
+              }
+              return yrs;
+            }
+          },
           grid: { color: gridColor }
         },
         y: {
@@ -1067,6 +1103,18 @@ document.addEventListener('DOMContentLoaded', () => {
   })();
   document.querySelectorAll('input[type="number"]').forEach(el => {
     el.addEventListener('input', debouncedCalculate);
+  });
+
+  // X-axis mode toggle
+  document.querySelectorAll('input[name="xAxis"]').forEach(radio => {
+    radio.addEventListener('change', e => {
+      STATE.xAxisMode = e.target.value;
+      if (STATE.chart) {
+        STATE.chart.options.scales.x.title.text =
+          e.target.value === 'age' ? 'Age' : 'Years from Now';
+        STATE.chart.update();
+      }
+    });
   });
 
   // Sensitivity row clicks
