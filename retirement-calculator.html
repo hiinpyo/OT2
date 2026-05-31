@@ -167,6 +167,37 @@
     input[type="number"].has-prefix { padding-left: 26px; }
     input[type="number"].has-suffix { padding-right: 36px; }
     input[type="number"].error { border-color: var(--negative); }
+    input[type="number"].has-spinners { padding-right: 24px; }
+    input[type="number"].has-spinners.has-suffix { padding-right: 50px; }
+    .input-wrap:has(.spinner-btns) .input-suffix { right: 26px; }
+    .spinner-btns {
+      position: absolute;
+      right: 1px; top: 1px; bottom: 1px;
+      width: 20px;
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid var(--border);
+      border-radius: 0 7px 7px 0;
+      overflow: hidden;
+    }
+    .spin-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 0.5rem;
+      line-height: 1;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      transition: background 0.12s, color 0.12s;
+    }
+    .spin-btn:first-child { border-bottom: 1px solid var(--border); }
+    .spin-btn:hover { background: var(--surface2); color: var(--text); }
+    .spin-btn:active { background: var(--accent); color: #fff; }
     .error-msg {
       font-size: 0.76rem;
       color: var(--negative);
@@ -1120,6 +1151,53 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('#sensBody tr').forEach(r => r.classList.remove('highlight-row'));
     tr.classList.add('highlight-row');
     selectSensitivityRow(offset);
+  });
+
+  // Spinner buttons
+  const spinnerSteps = {
+    currentAge: 1, currentPortfolio: 500,
+    monthlyIncome: 100, monthlyExpenses: 100, retirementExpenses: 100,
+    annualReturn: 0.1, withdrawalRate: 0.1
+  };
+  let spinHoldTimer = null;
+  document.addEventListener('mouseup', () => clearInterval(spinHoldTimer));
+
+  document.querySelectorAll('input[type="number"]').forEach(input => {
+    const wrap = input.closest('.input-wrap');
+    if (!wrap) return;
+
+    const step = spinnerSteps[input.id] ?? parseFloat(input.getAttribute('step')) ?? 1;
+    const decimals = step < 1 ? (String(step).split('.')[1]?.length ?? 1) : 0;
+    const min = input.min !== '' ? parseFloat(input.min) : -Infinity;
+    const max = input.max !== '' ? parseFloat(input.max) :  Infinity;
+
+    function doStep(dir) {
+      const next = parseFloat(((parseFloat(input.value) || 0) + dir * step).toFixed(decimals));
+      if (next < min || next > max) return;
+      input.value = next;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    const btns = document.createElement('div');
+    btns.className = 'spinner-btns';
+    ['▲', '▼'].forEach((label, i) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'spin-btn';
+      btn.tabIndex = -1;
+      btn.textContent = label;
+      btn.addEventListener('mousedown', e => {
+        e.preventDefault();
+        clearInterval(spinHoldTimer);
+        const dir = i === 0 ? 1 : -1;
+        doStep(dir);
+        spinHoldTimer = setInterval(() => doStep(dir), 80);
+      });
+      btns.appendChild(btn);
+    });
+
+    wrap.appendChild(btns);
+    input.classList.add('has-spinners');
   });
 
   // Init hints
