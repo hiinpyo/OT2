@@ -226,56 +226,11 @@
     .extra-badge.spending { background: rgba(239,68,68,0.15); color: var(--negative); }
     .extra-badge.neutral { background: var(--surface2); color: var(--text-dim); }
 
-    /* Buttons */
-    .btn-row {
-      display: flex;
-      gap: 10px;
-      margin-top: 20px;
-    }
-    .btn-primary {
-      flex: 1;
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: 9px;
-      padding: 11px 20px;
-      font-size: 0.95rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
-    }
-    .btn-primary:hover { background: var(--accent-hover); }
-    .btn-primary:active { transform: scale(0.98); }
-    .btn-reset {
-      background: transparent;
-      border: 1px solid var(--border);
-      border-radius: 9px;
-      padding: 11px 16px;
-      color: var(--text-muted);
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: border-color 0.2s, color 0.2s;
-    }
-    .btn-reset:hover { border-color: var(--accent); color: var(--text); }
 
     /* ── Results Panel ── */
     .results-panel { display: none; }
     .results-panel.visible { display: block; }
 
-    .stale-banner {
-      display: none;
-      background: rgba(250,204,21,0.1);
-      border: 1px solid rgba(250,204,21,0.3);
-      border-radius: 8px;
-      padding: 8px 14px;
-      font-size: 0.82rem;
-      color: var(--warning);
-      margin-bottom: 16px;
-    }
-    .stale-banner.visible { display: block; }
-    .results-panel.stale .cards-row,
-    .results-panel.stale .chart-card,
-    .results-panel.stale .sensitivity-section { opacity: 0.5; pointer-events: none; }
 
     /* Cards row */
     .cards-row {
@@ -511,16 +466,10 @@
       <div class="target-card-amount" id="target-hint">$1,050,000</div>
     </div>
 
-    <div class="btn-row">
-      <button class="btn-primary" id="calcBtn">Calculate Impact</button>
-      <button class="btn-reset" id="resetBtn">Reset</button>
-    </div>
   </div>
 
   <!-- ── RIGHT: Results Panel ── -->
   <div class="results-panel" id="results" role="region" aria-live="polite">
-    <div class="stale-banner" id="staleBanner">Results may be outdated — click Calculate to refresh</div>
-
     <div class="cards-row">
       <div class="card" id="card-baseline">
         <div class="card-label">Baseline</div>
@@ -755,7 +704,7 @@ function isDarkTheme() {
   return document.documentElement.getAttribute('data-theme') === 'dark';
 }
 
-function renderChart(result) {
+function renderChart(result, force = false) {
   const { labels, baseline, adjusted } = buildChartData(result);
   const { extraAmount } = result;
   const dark = isDarkTheme();
@@ -766,6 +715,17 @@ function renderChart(result) {
   const adjLabel    = extraAmount > 0 ? 'Saving More' : extraAmount < 0 ? 'Spending More' : 'Adjusted (no change)';
   const adjColor    = extraAmount > 0 ? '#22c55e' : extraAmount < 0 ? '#ef4444' : '#6366f1';
   const adjBg       = extraAmount > 0 ? 'rgba(34,197,94,0.07)' : extraAmount < 0 ? 'rgba(239,68,68,0.07)' : 'rgba(99,102,241,0.07)';
+
+  if (STATE.chart && !force) {
+    STATE.chart.data.labels              = labels;
+    STATE.chart.data.datasets[0].data   = baseline;
+    STATE.chart.data.datasets[1].data   = adjusted;
+    STATE.chart.data.datasets[1].label  = adjLabel;
+    STATE.chart.data.datasets[1].borderColor     = adjColor;
+    STATE.chart.data.datasets[1].backgroundColor = adjBg;
+    STATE.chart.update();
+    return;
+  }
 
   if (STATE.chart) { STATE.chart.destroy(); STATE.chart = null; }
 
@@ -964,8 +924,6 @@ function renderResults(result) {
 
   const resultsEl = document.getElementById('results');
   resultsEl.classList.add('visible');
-  resultsEl.classList.remove('stale');
-  document.getElementById('staleBanner').classList.remove('visible');
 
   // Baseline card
   const baseEl = document.getElementById('card-baseline');
@@ -1082,19 +1040,13 @@ function updateHints() {
 
 }
 
-function markStale() {
-  if (!STATE.calculated) return;
-  const resultsEl = document.getElementById('results');
-  resultsEl.classList.add('stale');
-  document.getElementById('staleBanner').classList.add('visible');
-}
 
 // ── Theme toggle ──────────────────────────────────────────────────────────
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   document.getElementById('themeToggle').textContent = theme === 'dark' ? '☀ Light' : '☾ Dark';
   localStorage.setItem('theme', theme);
-  if (STATE.chart && STATE.lastResult) renderChart(STATE.lastResult);
+  if (STATE.chart && STATE.lastResult) renderChart(STATE.lastResult, true);
 }
 
 // ── Event wiring ───────────────────────────────────────────────────────────
@@ -1113,33 +1065,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById(id).addEventListener('input', updateHints);
   });
 
-  // Stale marker on any input change
+  // Auto-recalculate on any input change (debounced)
+  const debouncedCalculate = (() => {
+    let t;
+    return () => { clearTimeout(t); t = setTimeout(calculate, 400); };
+  })();
   document.querySelectorAll('input[type="number"]').forEach(el => {
-    el.addEventListener('input', markStale);
-  });
-
-  // Calculate button
-  document.getElementById('calcBtn').addEventListener('click', calculate);
-
-  // Enter key on any input
-  document.querySelectorAll('input[type="number"]').forEach(el => {
-    el.addEventListener('keydown', e => { if (e.key === 'Enter') calculate(); });
-  });
-
-  // Reset
-  document.getElementById('resetBtn').addEventListener('click', () => {
-    const defaults = {
-      currentAge: 30, currentPortfolio: 50000, monthlyIncome: 6000,
-      monthlyExpenses: 4500, retirementExpenses: 3500,
-      annualReturn: 7, withdrawalRate: 4
-    };
-    Object.entries(defaults).forEach(([id, v]) => {
-      document.getElementById(id).value = v;
-    });
-    clearErrors();
-    updateHints();
-    markStale();
-    history.replaceState(null, '', location.pathname);
+    el.addEventListener('input', debouncedCalculate);
   });
 
   // Sensitivity row clicks
@@ -1203,8 +1135,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Init hints
   updateHints();
 
-  // Load from URL hash if present
-  loadFromHash();
+  // Load from URL hash if present, otherwise calculate with defaults
+  if (location.hash) {
+    loadFromHash();
+  } else {
+    calculate();
+  }
 });
 </script>
 
