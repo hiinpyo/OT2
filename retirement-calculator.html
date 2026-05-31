@@ -353,6 +353,8 @@
     .sens-table .delta-positive { color: var(--positive); font-weight: 600; }
     .sens-table .delta-negative { color: var(--negative); font-weight: 600; }
     .sens-table .delta-neutral  { color: var(--text-dim); }
+    .sens-table tbody tr { cursor: pointer; }
+    .sens-table tbody tr:hover td { background: var(--surface2); }
 
     /* Footer */
     footer {
@@ -800,6 +802,7 @@ function renderSensitivity(result) {
     const isHighlight = offset === extraAmount;
 
     const tr = document.createElement('tr');
+    tr.dataset.offset = offset;
     if (isHighlight) tr.className = 'highlight-row';
 
     let deltaStr, deltaClass;
@@ -822,6 +825,51 @@ function renderSensitivity(result) {
     `;
     tbody.appendChild(tr);
   });
+}
+
+// ── Sensitivity row selection ──────────────────────────────────────────────
+function selectSensitivityRow(offset) {
+  if (!STATE.lastResult) return;
+  const { PV, PMT_base, r, FV, n_base, currentAge } = STATE.lastResult;
+
+  const PMT_adj     = PMT_base + offset;
+  const n_adj       = monthsToRetirement(PV, PMT_adj, r, FV);
+  const delta       = isFinite(n_base) && isFinite(n_adj) ? n_base - n_adj : NaN;
+  const adjustedAge = currentAge + n_adj / 12;
+
+  const updated = { ...STATE.lastResult, PMT_adj, n_adj, delta, adjustedAge, extraAmount: offset };
+  STATE.lastResult = updated;
+
+  renderChart(updated);
+
+  // Adjusted card
+  document.getElementById('card-adjusted-main').textContent =
+    isFinite(n_adj) ? formatAge(adjustedAge) : 'Never';
+  document.getElementById('card-adjusted-sub').textContent =
+    isFinite(n_adj) ? `In ${formatMonths(n_adj)}` : 'Savings insufficient to reach target';
+
+  // Delta card
+  const deltaCard = document.getElementById('card-delta');
+  const deltaMain = document.getElementById('card-delta-main');
+  const deltaSub  = document.getElementById('card-delta-sub');
+
+  if (!isFinite(n_base) || !isFinite(n_adj)) {
+    deltaCard.className = 'card neutral';
+    deltaMain.textContent = '∞';
+    deltaSub.textContent  = 'One or both scenarios have no finite retirement date';
+  } else if (delta === 0) {
+    deltaCard.className = 'card neutral';
+    deltaMain.textContent = 'No change';
+    deltaSub.textContent  = 'Both scenarios are identical';
+  } else if (delta > 0) {
+    deltaCard.className = 'card positive';
+    deltaMain.textContent = formatDelta(delta);
+    deltaSub.textContent  = 'earlier than baseline';
+  } else {
+    deltaCard.className = 'card negative';
+    deltaMain.textContent = formatDelta(-delta);
+    deltaSub.textContent  = 'later than baseline';
+  }
 }
 
 // ── Rendering ──────────────────────────────────────────────────────────────
@@ -1007,6 +1055,17 @@ document.addEventListener('DOMContentLoaded', () => {
     updateHints();
     markStale();
     history.replaceState(null, '', location.pathname);
+  });
+
+  // Sensitivity row clicks
+  document.getElementById('sensBody').addEventListener('click', e => {
+    const tr = e.target.closest('tr');
+    if (!tr || !STATE.lastResult) return;
+    const offset = parseFloat(tr.dataset.offset);
+    if (isNaN(offset)) return;
+    document.querySelectorAll('#sensBody tr').forEach(r => r.classList.remove('highlight-row'));
+    tr.classList.add('highlight-row');
+    selectSensitivityRow(offset);
   });
 
   // Init hints
