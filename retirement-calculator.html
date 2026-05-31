@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Retirement Time Impact Calculator</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:           #0f1117;
+      --surface:      #1c1f2b;
+      --surface2:     #252836;
+      --border:       #2e3147;
+      --accent:       #6366f1;
+      --accent-hover: #818cf8;
+      --positive:     #22c55e;
+      --negative:     #ef4444;
+      --warning:      #facc15;
+      --text:         #e2e8f0;
+      --text-muted:   #94a3b8;
+      --text-dim:     #64748b;
+      --shadow:       rgba(0,0,0,0.35);
+    }
+    [data-theme="light"] {
+      --bg:           #f1f5f9;
+      --surface:      #ffffff;
+      --surface2:     #f8fafc;
+      --border:       #e2e8f0;
+      --accent:       #4f46e5;
+      --accent-hover: #4338ca;
+      --positive:     #16a34a;
+      --negative:     #dc2626;
+      --warning:      #ca8a04;
+      --text:         #0f172a;
+      --text-muted:   #475569;
+      --text-dim:     #94a3b8;
+      --shadow:       rgba(0,0,0,0.1);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .header-title h1 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .header-title p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .theme-toggle {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--text); }
+
+    /* ── Main grid ── */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 400px 1fr;
+      gap: 24px;
+      max-width: 1200px;
+      margin: 24px auto;
+      padding: 0 24px;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Form Panel ── */
+    .form-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+    }
+    .form-panel h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: var(--text);
+    }
+    .section-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin: 20px 0 12px;
+    }
+    .section-label:first-of-type { margin-top: 0; }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 14px;
+    }
+    .form-group label {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .input-wrap {
+      position: relative;
+    }
+    .input-prefix {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      font-size: 0.95rem;
+      pointer-events: none;
+    }
+    .input-suffix {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      pointer-events: none;
+    }
+    input[type="number"] {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 14px;
+      color: var(--text);
+      font-size: 0.95rem;
+      transition: border-color 0.2s;
+      -moz-appearance: textfield;
+    }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+    input[type="number"]:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
+    input[type="number"].has-prefix { padding-left: 26px; }
+    input[type="number"].has-suffix { padding-right: 36px; }
+    input[type="number"].error { border-color: var(--negative); }
+    .error-msg {
+      font-size: 0.76rem;
+      color: var(--negative);
+      display: none;
+    }
+    .error-msg.visible { display: block; }
+    .hint {
+      font-size: 0.76rem;
+      color: var(--text-dim);
+    }
+
+    /* Extra amount special field */
+    .extra-amount-wrap {
+      position: relative;
+    }
+    .extra-badge {
+      display: inline-block;
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 600;
+      margin-top: 4px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .extra-badge.saving { background: rgba(34,197,94,0.15); color: var(--positive); }
+    .extra-badge.spending { background: rgba(239,68,68,0.15); color: var(--negative); }
+    .extra-badge.neutral { background: var(--surface2); color: var(--text-dim); }
+
+    /* Buttons */
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .btn-primary {
+      flex: 1;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 9px;
+      padding: 11px 20px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-reset {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 11px 16px;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-reset:hover { border-color: var(--accent); color: var(--text); }
+
+    /* ── Results Panel ── */
+    .results-panel { display: none; }
+    .results-panel.visible { display: block; }
+
+    .stale-banner {
+      display: none;
+      background: rgba(250,204,21,0.1);
+      border: 1px solid rgba(250,204,21,0.3);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 0.82rem;
+      color: var(--warning);
+      margin-bottom: 16px;
+    }
+    .stale-banner.visible { display: block; }
+    .results-panel.stale .cards-row,
+    .results-panel.stale .chart-card,
+    .results-panel.stale .sensitivity-section { opacity: 0.5; pointer-events: none; }
+
+    /* Cards row */
+    .cards-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+      transition: opacity 0.3s;
+    }
+    @media (max-width: 600px) {
+      .cards-row { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .card-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+    .card-main {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .card-sub {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .card.positive { border-color: rgba(34,197,94,0.4); background: rgba(34,197,94,0.06); }
+    .card.negative { border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.06); }
+    .card.neutral  { border-color: var(--border); }
+    .card-delta-main {
+      font-size: 1.4rem;
+      font-weight: 800;
+    }
+    .card.positive .card-delta-main { color: var(--positive); }
+    .card.negative .card-delta-main { color: var(--negative); }
+    .card.neutral  .card-delta-main { color: var(--text-muted); }
+
+    /* Chart */
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      transition: opacity 0.3s;
+    }
+    .chart-wrapper {
+      position: relative;
+      height: 360px;
+    }
+    @media (max-width: 600px) {
+      .chart-wrapper { height: 240px; }
+    }
+
+    /* Sensitivity table */
+    .sensitivity-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: opacity 0.3s;
+    }
+    .sensitivity-section summary {
+      padding: 14px 18px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      user-select: none;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sensitivity-section summary::-webkit-details-marker { display: none; }
+    .sensitivity-section summary::before {
+      content: '▶';
+      font-size: 0.65rem;
+      transition: transform 0.2s;
+    }
+    .sensitivity-section[open] summary::before { transform: rotate(90deg); }
+    .sensitivity-section summary:hover { color: var(--text); }
+    .sens-table-wrap { padding: 0 18px 18px; overflow-x: auto; overflow-y: auto; max-height: 340px; }
+    .sens-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    .sens-table th {
+      text-align: left;
+      padding: 8px 12px;
+      color: var(--text-dim);
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+      z-index: 1;
+    }
+    .sens-table td {
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+    .sens-table tr:last-child td { border-bottom: none; }
+    .sens-table tr.highlight-row td { color: var(--text); font-weight: 600; background: var(--surface2); }
+    .sens-table .delta-positive { color: var(--positive); font-weight: 600; }
+    .sens-table .delta-negative { color: var(--negative); font-weight: 600; }
+    .sens-table .delta-neutral  { color: var(--text-dim); }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 32px 24px;
+      color: var(--text-dim);
+      font-size: 0.78rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-title">
+    <h1>Retirement Time Impact Calculator</h1>
+    <p>See how one financial decision changes when you retire</p>
+  </div>
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">☀ Light</button>
+</header>
+
+<div class="main-grid">
+
+  <!-- ── LEFT: Input Form ── -->
+  <div class="form-panel">
+    <h2>Your Situation</h2>
+
+    <div class="section-label">Profile</div>
+
+    <div class="form-group">
+      <label for="currentAge">Current Age</label>
+      <div class="input-wrap">
+        <input type="number" id="currentAge" value="30" min="1" max="100">
+      </div>
+      <span class="error-msg" id="err-currentAge"></span>
+    </div>
+
+    <div class="form-group">
+      <label for="currentPortfolio">Current Portfolio / Savings</label>
+      <div class="input-wrap">
+        <span class="input-prefix">$</span>
+        <input type="number" id="currentPortfolio" value="50000" min="0" class="has-prefix">
+      </div>
+      <span class="error-msg" id="err-currentPortfolio"></span>
+    </div>
+
+    <div class="section-label">Monthly Cash Flow</div>
+
+    <div class="form-group">
+      <label for="monthlyIncome">Monthly Income (after tax)</label>
+      <div class="input-wrap">
+        <span class="input-prefix">$</span>
+        <input type="number" id="monthlyIncome" value="6000" min="0" class="has-prefix">
+      </div>
+      <span class="error-msg" id="err-monthlyIncome"></span>
+    </div>
+
+    <div class="form-group">
+      <label for="monthlyExpenses">Monthly Expenses (current)</label>
+      <div class="input-wrap">
+        <span class="input-prefix">$</span>
+        <input type="number" id="monthlyExpenses" value="4500" min="0" class="has-prefix">
+      </div>
+      <span class="hint" id="savings-hint">Monthly savings: <strong>$1,500</strong></span>
+      <span class="error-msg" id="err-monthlyExpenses"></span>
+    </div>
+
+    <div class="section-label">Retirement Assumptions</div>
+
+    <div class="form-group">
+      <label for="retirementExpenses">Monthly Expenses in Retirement</label>
+      <div class="input-wrap">
+        <span class="input-prefix">$</span>
+        <input type="number" id="retirementExpenses" value="3500" min="0" class="has-prefix">
+      </div>
+      <span class="hint" id="target-hint">Retirement target: <strong>$1,050,000</strong></span>
+      <span class="error-msg" id="err-retirementExpenses"></span>
+    </div>
+
+    <div class="form-group">
+      <label for="annualReturn">Expected Annual Return</label>
+      <div class="input-wrap">
+        <input type="number" id="annualReturn" value="7" min="0" max="30" step="0.1" class="has-suffix">
+        <span class="input-suffix">%</span>
+      </div>
+      <span class="error-msg" id="err-annualReturn"></span>
+    </div>
+
+    <div class="form-group">
+      <label for="withdrawalRate">Safe Withdrawal Rate</label>
+      <div class="input-wrap">
+        <input type="number" id="withdrawalRate" value="4" min="0.5" max="10" step="0.1" class="has-suffix">
+        <span class="input-suffix">%</span>
+      </div>
+      <span class="hint">4% = the classic 25x rule</span>
+      <span class="error-msg" id="err-withdrawalRate"></span>
+    </div>
+
+    <div class="section-label">The Decision</div>
+
+    <div class="form-group">
+      <label for="extraAmount">Extra Monthly Amount</label>
+      <div class="input-wrap extra-amount-wrap">
+        <span class="input-prefix">$</span>
+        <input type="number" id="extraAmount" value="0" class="has-prefix">
+      </div>
+      <span class="extra-badge neutral" id="extraBadge">Enter an amount — positive to save more, negative to spend more</span>
+      <span class="error-msg" id="err-extraAmount"></span>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-primary" id="calcBtn">Calculate Impact</button>
+      <button class="btn-reset" id="resetBtn">Reset</button>
+    </div>
+  </div>
+
+  <!-- ── RIGHT: Results Panel ── -->
+  <div class="results-panel" id="results" role="region" aria-live="polite">
+    <div class="stale-banner" id="staleBanner">Results may be outdated — click Calculate to refresh</div>
+
+    <div class="cards-row">
+      <div class="card" id="card-baseline">
+        <div class="card-label">Baseline</div>
+        <div class="card-main" id="card-baseline-main">—</div>
+        <div class="card-sub" id="card-baseline-sub">—</div>
+      </div>
+      <div class="card" id="card-adjusted">
+        <div class="card-label">Adjusted</div>
+        <div class="card-main" id="card-adjusted-main">—</div>
+        <div class="card-sub" id="card-adjusted-sub">—</div>
+      </div>
+      <div class="card neutral" id="card-delta">
+        <div class="card-label">Difference</div>
+        <div class="card-delta-main" id="card-delta-main">—</div>
+        <div class="card-sub" id="card-delta-sub">—</div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-wrapper">
+        <canvas id="portfolioChart"></canvas>
+      </div>
+    </div>
+
+    <details class="sensitivity-section" id="sensitivitySection">
+      <summary>Sensitivity Analysis — how different amounts compare</summary>
+      <div class="sens-table-wrap">
+        <table class="sens-table" id="sensTable">
+          <thead>
+            <tr>
+              <th>Extra $/mo</th>
+              <th>Retire At</th>
+              <th>Time to Retire</th>
+              <th>vs. Baseline</th>
+            </tr>
+          </thead>
+          <tbody id="sensBody"></tbody>
+        </table>
+      </div>
+    </details>
+  </div>
+
+</div>
+
+<footer>
+  Results are estimates based on constant returns and contributions. Past performance does not guarantee future results. Consult a financial advisor for personalized guidance.
+</footer>
+
+<script>
+'use strict';
+
+// ── State ──────────────────────────────────────────────────────────────────
+const STATE = { chart: null, lastResult: null, calculated: false };
+
+// ── Formatters ─────────────────────────────────────────────────────────────
+const fmtCurrency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+function formatCurrency(v) { return fmtCurrency.format(v); }
+
+function formatCurrencyShort(v) {
+  if (v >= 1e9) return '$' + (v / 1e9).toFixed(2) + 'B';
+  if (v >= 1e6) return '$' + (v / 1e6).toFixed(2) + 'M';
+  if (v >= 1e3) return '$' + (v / 1e3).toFixed(0) + 'K';
+  return formatCurrency(v);
+}
+
+function formatAge(decimalAge) {
+  const years  = Math.floor(decimalAge);
+  const months = Math.round((decimalAge - years) * 12);
+  if (months === 12) return `Age ${years + 1}y 0m`;
+  return `Age ${years}y ${months}m`;
+}
+
+function formatMonths(n) {
+  if (!isFinite(n) || n > 1200) return 'Never (∞)';
+  n = Math.ceil(n);
+  const y = Math.floor(n / 12);
+  const m = n % 12;
+  if (y === 0) return `${m} month${m !== 1 ? 's' : ''}`;
+  if (m === 0) return `${y} year${y !== 1 ? 's' : ''}`;
+  return `${y}y ${m}mo`;
+}
+
+function formatDelta(months) {
+  const abs = Math.abs(months);
+  const y   = Math.floor(abs / 12);
+  const m   = abs % 12;
+  const parts = [];
+  if (y > 0) parts.push(`${y} year${y !== 1 ? 's' : ''}`);
+  if (m > 0) parts.push(`${m} month${m !== 1 ? 's' : ''}`);
+  return parts.join(' ') || '0 months';
+}
+
+// ── Math ───────────────────────────────────────────────────────────────────
+function calcTarget(retirementExpenses, withdrawalRate) {
+  return (retirementExpenses * 12) / (withdrawalRate / 100);
+}
+
+function monthsToRetirement(PV, PMT, r, FV) {
+  if (PV >= FV) return 0;
+  if (r < 0.0001) {
+    // Near-zero return: linear
+    if (PMT <= 0) return Infinity;
+    return Math.ceil((FV - PV) / PMT);
+  }
+  const num = FV * r + PMT;
+  const den = PV * r + PMT;
+  if (den <= 0 || num <= 0) return Infinity;
+  const n = Math.log(num / den) / Math.log(1 + r);
+  if (!isFinite(n) || n < 0) return Infinity;
+  return Math.ceil(n);
+}
+
+// ── Input handling ─────────────────────────────────────────────────────────
+function val(id) { return parseFloat(document.getElementById(id).value); }
+
+function getInputs() {
+  const errors = [];
+
+  const currentAge          = val('currentAge');
+  const currentPortfolio    = val('currentPortfolio');
+  const monthlyIncome       = val('monthlyIncome');
+  const monthlyExpenses     = val('monthlyExpenses');
+  const retirementExpenses  = val('retirementExpenses');
+  const annualReturn        = val('annualReturn');
+  const withdrawalRate      = val('withdrawalRate');
+  const extraAmount         = val('extraAmount');
+
+  if (isNaN(currentAge) || currentAge < 1 || currentAge > 100)
+    errors.push({ id: 'currentAge', msg: 'Enter a valid age (1–100).' });
+  if (isNaN(currentPortfolio) || currentPortfolio < 0)
+    errors.push({ id: 'currentPortfolio', msg: 'Must be 0 or more.' });
+  if (isNaN(monthlyIncome) || monthlyIncome <= 0)
+    errors.push({ id: 'monthlyIncome', msg: 'Must be greater than 0.' });
+  if (isNaN(monthlyExpenses) || monthlyExpenses < 0)
+    errors.push({ id: 'monthlyExpenses', msg: 'Must be 0 or more.' });
+  if (isNaN(retirementExpenses) || retirementExpenses <= 0)
+    errors.push({ id: 'retirementExpenses', msg: 'Must be greater than 0.' });
+  if (isNaN(annualReturn) || annualReturn < 0 || annualReturn > 30)
+    errors.push({ id: 'annualReturn', msg: 'Enter a return rate between 0 and 30%.' });
+  if (isNaN(withdrawalRate) || withdrawalRate < 0.5 || withdrawalRate > 10)
+    errors.push({ id: 'withdrawalRate', msg: 'Enter a rate between 0.5% and 10%.' });
+  if (isNaN(extraAmount))
+    errors.push({ id: 'extraAmount', msg: 'Enter a number (can be negative).' });
+
+  if (errors.length) throw errors;
+
+  return { currentAge, currentPortfolio, monthlyIncome, monthlyExpenses,
+           retirementExpenses, annualReturn, withdrawalRate, extraAmount };
+}
+
+function clearErrors() {
+  document.querySelectorAll('.error-msg').forEach(el => { el.textContent = ''; el.classList.remove('visible'); });
+  document.querySelectorAll('input.error').forEach(el => el.classList.remove('error'));
+}
+
+function showErrors(errors) {
+  errors.forEach(({ id, msg }) => {
+    const errEl = document.getElementById('err-' + id);
+    const inp   = document.getElementById(id);
+    if (errEl) { errEl.textContent = msg; errEl.classList.add('visible'); }
+    if (inp)   inp.classList.add('error');
+  });
+  const firstId = errors[0].id;
+  document.getElementById(firstId)?.focus();
+}
+
+// ── Chart ──────────────────────────────────────────────────────────────────
+function buildChartData(result) {
+  const { PV, PMT_base, PMT_adj, r, FV, n_base, n_adj } = result;
+  const maxN = Math.min(Math.max(isFinite(n_base) ? n_base : 0, isFinite(n_adj) ? n_adj : 0) + 24, 600);
+
+  const labels = [], baseline = [], adjusted = [];
+  for (let month = 0; month <= maxN; month++) {
+    labels.push(month);
+    const growth = Math.pow(1 + r, month);
+    const bVal = r > 0.0001
+      ? PV * growth + PMT_base * (growth - 1) / r
+      : PV + PMT_base * month;
+    const aVal = r > 0.0001
+      ? PV * growth + PMT_adj * (growth - 1) / r
+      : PV + PMT_adj * month;
+    baseline.push(Math.max(0, bVal));
+    adjusted.push(Math.max(0, aVal));
+  }
+  return { labels, baseline, adjusted, maxN };
+}
+
+const retirementLinesPlugin = {
+  id: 'retirementLines',
+  afterDraw(chart) {
+    if (!STATE.lastResult) return;
+    const { ctx, chartArea: { left, right, top, bottom }, scales: { x, y } } = chart;
+    const { FV, n_base, n_adj, extraAmount } = STATE.lastResult;
+    const maxLabel = chart.data.labels.at(-1);
+
+    ctx.save();
+    ctx.setLineDash([6, 4]);
+    ctx.lineWidth = 1.5;
+    ctx.font = '11px system-ui, sans-serif';
+
+    // Horizontal line at retirement target
+    const yFV = y.getPixelForValue(FV);
+    if (yFV >= top && yFV <= bottom) {
+      ctx.strokeStyle = '#facc15';
+      ctx.beginPath(); ctx.moveTo(left, yFV); ctx.lineTo(right, yFV); ctx.stroke();
+      ctx.fillStyle = '#facc15';
+      ctx.fillText('Target: ' + formatCurrencyShort(FV), left + 6, yFV - 5);
+    }
+
+    // Vertical at baseline retirement
+    if (isFinite(n_base) && n_base <= maxLabel) {
+      const xBase = x.getPixelForValue(n_base);
+      ctx.strokeStyle = '#6366f1';
+      ctx.beginPath(); ctx.moveTo(xBase, top); ctx.lineTo(xBase, bottom); ctx.stroke();
+      ctx.fillStyle = '#6366f1';
+      ctx.fillText('Baseline', xBase + 4, top + 14);
+    }
+
+    // Vertical at adjusted retirement
+    if (isFinite(n_adj) && n_adj <= maxLabel && n_adj !== n_base) {
+      const xAdj = x.getPixelForValue(n_adj);
+      const adjColor = extraAmount > 0 ? '#22c55e' : '#ef4444';
+      ctx.strokeStyle = adjColor;
+      ctx.beginPath(); ctx.moveTo(xAdj, top); ctx.lineTo(xAdj, bottom); ctx.stroke();
+      ctx.fillStyle = adjColor;
+      ctx.fillText('Adjusted', xAdj + 4, top + 28);
+    }
+
+    ctx.restore();
+  }
+};
+
+function isDarkTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'dark';
+}
+
+function renderChart(result) {
+  const { labels, baseline, adjusted } = buildChartData(result);
+  const { extraAmount } = result;
+  const dark = isDarkTheme();
+
+  const gridColor   = dark ? '#1e2235' : '#e2e8f0';
+  const tickColor   = dark ? '#64748b' : '#94a3b8';
+  const textColor   = dark ? '#e2e8f0' : '#0f172a';
+  const adjLabel    = extraAmount > 0 ? 'Saving More' : extraAmount < 0 ? 'Spending More' : 'Adjusted (no change)';
+  const adjColor    = extraAmount > 0 ? '#22c55e' : extraAmount < 0 ? '#ef4444' : '#6366f1';
+  const adjBg       = extraAmount > 0 ? 'rgba(34,197,94,0.07)' : extraAmount < 0 ? 'rgba(239,68,68,0.07)' : 'rgba(99,102,241,0.07)';
+
+  if (STATE.chart) { STATE.chart.destroy(); STATE.chart = null; }
+
+  const ctx = document.getElementById('portfolioChart').getContext('2d');
+  STATE.chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Baseline',
+          data: baseline,
+          borderColor: '#6366f1',
+          backgroundColor: 'rgba(99,102,241,0.08)',
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: true,
+          tension: 0.3,
+        },
+        {
+          label: adjLabel,
+          data: adjusted,
+          borderColor: adjColor,
+          backgroundColor: adjBg,
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: true,
+          tension: 0.3,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      animation: { duration: 400 },
+      plugins: {
+        title: {
+          display: true,
+          text: 'Portfolio Growth Over Time',
+          color: textColor,
+          font: { size: 14, weight: '600' },
+          padding: { bottom: 12 }
+        },
+        legend: {
+          labels: { color: tickColor, usePointStyle: true, pointStyleWidth: 10 }
+        },
+        tooltip: {
+          backgroundColor: dark ? '#1c1f2b' : '#fff',
+          borderColor: dark ? '#2e3147' : '#e2e8f0',
+          borderWidth: 1,
+          titleColor: textColor,
+          bodyColor: tickColor,
+          callbacks: {
+            title: (items) => `Month ${items[0].label}  (${formatMonths(+items[0].label)})`,
+            label: (item) => `  ${item.dataset.label}: ${formatCurrency(item.raw)}`
+          }
+        },
+        retirementLines: {}
+      },
+      scales: {
+        x: {
+          title: { display: true, text: 'Months from Now', color: tickColor, font: { size: 11 } },
+          ticks: { color: tickColor, maxTicksLimit: 10 },
+          grid: { color: gridColor }
+        },
+        y: {
+          title: { display: true, text: 'Portfolio Value', color: tickColor, font: { size: 11 } },
+          ticks: {
+            color: tickColor,
+            callback: (v) => formatCurrencyShort(v)
+          },
+          grid: { color: gridColor }
+        }
+      }
+    },
+    plugins: [retirementLinesPlugin]
+  });
+}
+
+// ── Sensitivity table ──────────────────────────────────────────────────────
+function renderSensitivity(result) {
+  const { PV, PMT_base, r, FV, n_base, currentAge, extraAmount } = result;
+  const offsets = [-2000, -1500, -1000, -750, -500, -250, -200, -150, -100, -50, -25, 0, 25, 50, 100, 150, 200, 250, 500, 750, 1000, 1500, 2000];
+  const tbody = document.getElementById('sensBody');
+  tbody.innerHTML = '';
+
+  offsets.forEach(offset => {
+    const pmt   = PMT_base + offset;
+    const n     = monthsToRetirement(PV, pmt, r, FV);
+    const delta = n_base - n;
+    const age   = currentAge + n / 12;
+    const isHighlight = offset === extraAmount;
+
+    const tr = document.createElement('tr');
+    if (isHighlight) tr.className = 'highlight-row';
+
+    let deltaStr, deltaClass;
+    if (!isFinite(delta) || !isFinite(n)) {
+      deltaStr = '∞ later'; deltaClass = 'delta-negative';
+    } else if (delta > 0) {
+      deltaStr = formatDelta(delta) + ' sooner'; deltaClass = 'delta-positive';
+    } else if (delta < 0) {
+      deltaStr = formatDelta(-delta) + ' later'; deltaClass = 'delta-negative';
+    } else {
+      deltaStr = '—'; deltaClass = 'delta-neutral';
+    }
+
+    const sign = offset > 0 ? '+' : '';
+    tr.innerHTML = `
+      <td>${sign}${formatCurrency(offset)}/mo</td>
+      <td>${isFinite(n) ? formatAge(age) : '∞'}</td>
+      <td>${formatMonths(n)}</td>
+      <td class="${deltaClass}">${deltaStr}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── Rendering ──────────────────────────────────────────────────────────────
+function renderResults(result) {
+  const { n_base, n_adj, delta, baselineAge, adjustedAge, extraAmount, FV, PMT_base } = result;
+
+  const resultsEl = document.getElementById('results');
+  resultsEl.classList.add('visible');
+  resultsEl.classList.remove('stale');
+  document.getElementById('staleBanner').classList.remove('visible');
+
+  // Baseline card
+  const baseEl = document.getElementById('card-baseline');
+  baseEl.className = 'card';
+  document.getElementById('card-baseline-main').textContent =
+    isFinite(n_base) ? formatAge(baselineAge) : 'Never';
+  document.getElementById('card-baseline-sub').textContent =
+    isFinite(n_base) ? `In ${formatMonths(n_base)} · Target: ${formatCurrencyShort(FV)}` : 'Savings insufficient to reach target';
+
+  // Adjusted card
+  document.getElementById('card-adjusted-main').textContent =
+    isFinite(n_adj) ? formatAge(adjustedAge) : 'Never';
+  document.getElementById('card-adjusted-sub').textContent =
+    isFinite(n_adj) ? `In ${formatMonths(n_adj)}` : 'Savings insufficient to reach target';
+
+  // Delta card
+  const deltaCard = document.getElementById('card-delta');
+  const deltaMain = document.getElementById('card-delta-main');
+  const deltaSub  = document.getElementById('card-delta-sub');
+
+  if (!isFinite(n_base) || !isFinite(n_adj)) {
+    deltaCard.className = 'card neutral';
+    deltaMain.textContent = '∞';
+    deltaSub.textContent  = 'One or both scenarios have no finite retirement date';
+  } else if (delta === 0) {
+    deltaCard.className = 'card neutral';
+    deltaMain.textContent = 'No change';
+    deltaSub.textContent  = 'Both scenarios are identical';
+  } else if (delta > 0) {
+    deltaCard.className = 'card positive';
+    deltaMain.textContent = formatDelta(delta);
+    deltaSub.textContent  = 'earlier than baseline';
+  } else {
+    deltaCard.className = 'card negative';
+    deltaMain.textContent = formatDelta(-delta);
+    deltaSub.textContent  = 'later than baseline';
+  }
+
+  renderChart(result);
+  renderSensitivity(result);
+
+  if (window.innerWidth < 900) {
+    resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+// ── Main calculate ─────────────────────────────────────────────────────────
+function calculate() {
+  clearErrors();
+
+  let inputs;
+  try { inputs = getInputs(); }
+  catch (errors) { showErrors(errors); return; }
+
+  const { currentAge, currentPortfolio, monthlyIncome, monthlyExpenses,
+          retirementExpenses, annualReturn, withdrawalRate, extraAmount } = inputs;
+
+  const r        = (annualReturn / 100) / 12;
+  const FV       = calcTarget(retirementExpenses, withdrawalRate);
+  const PV       = currentPortfolio;
+  const PMT_base = monthlyIncome - monthlyExpenses;
+  const PMT_adj  = PMT_base + extraAmount;
+
+  const n_base      = monthsToRetirement(PV, PMT_base, r, FV);
+  const n_adj       = monthsToRetirement(PV, PMT_adj, r, FV);
+  const delta       = isFinite(n_base) && isFinite(n_adj) ? n_base - n_adj : NaN;
+  const baselineAge = currentAge + n_base / 12;
+  const adjustedAge = currentAge + n_adj / 12;
+
+  const result = { PV, PMT_base, PMT_adj, r, FV, n_base, n_adj,
+                   delta, baselineAge, adjustedAge, currentAge, extraAmount };
+  STATE.lastResult = result;
+  STATE.calculated = true;
+
+  renderResults(result);
+  saveToHash(inputs);
+}
+
+// ── URL hash permalink ─────────────────────────────────────────────────────
+function saveToHash(inputs) {
+  try {
+    const encoded = btoa(JSON.stringify(inputs));
+    history.replaceState(null, '', '#' + encoded);
+  } catch(e) {}
+}
+
+function loadFromHash() {
+  if (!location.hash) return;
+  try {
+    const inputs = JSON.parse(atob(location.hash.slice(1)));
+    const fields = ['currentAge','currentPortfolio','monthlyIncome','monthlyExpenses',
+                    'retirementExpenses','annualReturn','withdrawalRate','extraAmount'];
+    fields.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && inputs[id] !== undefined) el.value = inputs[id];
+    });
+    updateHints();
+    calculate();
+  } catch(e) {}
+}
+
+// ── Live hints ─────────────────────────────────────────────────────────────
+function updateHints() {
+  const income   = val('monthlyIncome')   || 0;
+  const expenses = val('monthlyExpenses') || 0;
+  const retExp   = val('retirementExpenses') || 0;
+  const swr      = val('withdrawalRate') || 4;
+  const extra    = val('extraAmount')    || 0;
+
+  const savings = income - expenses;
+  document.getElementById('savings-hint').innerHTML =
+    `Monthly savings: <strong>${formatCurrency(savings)}/mo</strong>`;
+
+  const target = calcTarget(retExp, swr);
+  document.getElementById('target-hint').innerHTML =
+    `Retirement target: <strong>${formatCurrencyShort(target)}</strong>`;
+
+  const badge = document.getElementById('extraBadge');
+  if (extra > 0) {
+    badge.className = 'extra-badge saving';
+    badge.textContent = `Saving ${formatCurrency(extra)}/mo more`;
+  } else if (extra < 0) {
+    badge.className = 'extra-badge spending';
+    badge.textContent = `Spending ${formatCurrency(Math.abs(extra))}/mo more`;
+  } else {
+    badge.className = 'extra-badge neutral';
+    badge.textContent = 'Enter an amount — positive to save more, negative to spend more';
+  }
+}
+
+function markStale() {
+  if (!STATE.calculated) return;
+  const resultsEl = document.getElementById('results');
+  resultsEl.classList.add('stale');
+  document.getElementById('staleBanner').classList.add('visible');
+}
+
+// ── Theme toggle ──────────────────────────────────────────────────────────
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('themeToggle').textContent = theme === 'dark' ? '☀ Light' : '☾ Dark';
+  localStorage.setItem('theme', theme);
+  if (STATE.chart && STATE.lastResult) renderChart(STATE.lastResult);
+}
+
+// ── Event wiring ───────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  // Theme
+  const savedTheme = localStorage.getItem('theme') || 'dark';
+  applyTheme(savedTheme);
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme');
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+  });
+
+  // Hints on input
+  const hintFields = ['monthlyIncome','monthlyExpenses','retirementExpenses','withdrawalRate','extraAmount'];
+  hintFields.forEach(id => {
+    document.getElementById(id).addEventListener('input', updateHints);
+  });
+
+  // Stale marker on any input change
+  document.querySelectorAll('input[type="number"]').forEach(el => {
+    el.addEventListener('input', markStale);
+  });
+
+  // Calculate button
+  document.getElementById('calcBtn').addEventListener('click', calculate);
+
+  // Enter key on any input
+  document.querySelectorAll('input[type="number"]').forEach(el => {
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') calculate(); });
+  });
+
+  // Reset
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    const defaults = {
+      currentAge: 30, currentPortfolio: 50000, monthlyIncome: 6000,
+      monthlyExpenses: 4500, retirementExpenses: 3500,
+      annualReturn: 7, withdrawalRate: 4, extraAmount: 0
+    };
+    Object.entries(defaults).forEach(([id, v]) => {
+      document.getElementById(id).value = v;
+    });
+    clearErrors();
+    updateHints();
+    markStale();
+    history.replaceState(null, '', location.pathname);
+  });
+
+  // Init hints
+  updateHints();
+
+  // Load from URL hash if present
+  loadFromHash();
+});
+</script>
+
+</body>
+</html>
